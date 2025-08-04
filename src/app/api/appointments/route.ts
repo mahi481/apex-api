@@ -27,7 +27,7 @@ function withCors(body: any, status = 200) {
 // Create transporter with better error handling
 const createTransport = () => {
   try {
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       host: process.env.SMTP_HOST || "smtp.gmail.com",
       port: parseInt(process.env.SMTP_PORT || "465"),
       secure: true,
@@ -49,7 +49,7 @@ const createTransport = () => {
 const transporter = createTransporter();
 
 // Verify transporter on startup (optional, non-blocking)
-if (transporter) {
+if (transport) {
   transporter.verify()
     .then(() => {
       console.log("✅ SMTP transporter ready");
