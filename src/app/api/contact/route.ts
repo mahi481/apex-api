@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+ import { type NextRequest, NextResponse } from "next/server"
 import nodemailer from "nodemailer"
 
 const contacts: any[] = []
@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
   },
 })
 
-// ✅ GET to test API in the browser
+// ✅ Added GET method to test API in browser
 export async function GET() {
   return NextResponse.json({ message: "Contact API is working" })
 }
