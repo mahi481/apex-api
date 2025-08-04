@@ -4,26 +4,37 @@ export const runtime = "nodejs";
 import { type NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
-// In-memory storage (replace with DB in prod)
+// In-memory storage
 const appointments: any[] = [];
 
-// CORS config — during development allow localhost; in prod set your real frontend origin
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "http://localhost:3000";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+// Allowed origins (dev + future prod). You can supply prod via env later.
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  process.env.FRONTEND_ORIGIN || "", // e.g., "https://your-production-domain.com"
+].filter(Boolean);
 
-// Helper to include CORS headers
-function withCors(body: any, status = 200) {
+// Build CORS headers based on the incoming Origin header
+function buildCorsHeaders(request: NextRequest) {
+  const origin = request.headers.get("origin") || "";
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    return {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      // add this if you ever send cookies: "Access-Control-Allow-Credentials": "true"
+    };
+  }
+  return {};
+}
+
+function withCors(body: any, request: NextRequest, status = 200) {
   return NextResponse.json(body, {
     status,
-    headers: corsHeaders,
+    headers: buildCorsHeaders(request),
   });
 }
 
-// Transporter
+// Setup transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: 465,
@@ -34,19 +45,19 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Optional verify (logs visible in Vercel)
+// Verify (for logs)
 transporter.verify().then(() => {
   console.log("SMTP transporter verified.");
 }).catch((err) => {
-  console.error("SMTP verification failed:", err);
+  console.error("SMTP verify failed:", err);
 });
 
 // Preflight handler
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      ...corsHeaders,
+      ...buildCorsHeaders(request),
     },
   });
 }
@@ -78,12 +89,12 @@ export async function POST(request: NextRequest) {
       !date ||
       !time
     ) {
-      return withCors({ error: "All required fields must be provided." }, 400);
+      return withCors({ error: "All required fields must be provided." }, request, 400);
     }
 
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.ADMIN_EMAIL) {
-      console.error("Missing email-related env vars.");
-      return withCors({ error: "Server configuration error." }, 500);
+      console.error("Missing required email env vars.");
+      return withCors({ error: "Server configuration error." }, request, 500);
     }
 
     const appointment = {
@@ -181,12 +192,14 @@ export async function POST(request: NextRequest) {
       `,
     };
 
+    // Send admin (non-fatal)
     try {
       await transporter.sendMail(adminMailOptions);
     } catch (e) {
       console.error("Admin email error:", e);
     }
 
+    // Send patient, error here returns warning
     try {
       await transporter.sendMail(patientMailOptions);
     } catch (e) {
@@ -197,6 +210,7 @@ export async function POST(request: NextRequest) {
           warning: "Appointment saved but confirmation email failed.",
           appointmentId: appointment.id,
         },
+        request,
         200
       );
     }
@@ -207,20 +221,22 @@ export async function POST(request: NextRequest) {
         message: "Appointment booked! Confirmation email sent.",
         appointmentId: appointment.id,
       },
+      request,
       200
     );
   } catch (err) {
     console.error("POST error:", err);
-    return withCors({ error: "Failed to book appointment. Try again later." }, 500);
+    return withCors({ error: "Failed to book appointment. Try again later." }, request, 500);
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   return withCors(
     {
       appointments: appointments.length,
       message: "Appointments API is working",
     },
+    request,
     200
   );
 }
