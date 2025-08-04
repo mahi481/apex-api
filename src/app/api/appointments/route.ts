@@ -331,12 +331,17 @@ export async function POST(request: NextRequest) {
     }, 200);
 
   } catch (error) {
-    console.error("❌ POST error:", error);
-    return withCors({ 
-      error: "Failed to book appointment. Please try again later.",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    }, 500);
-  }
+  const message =
+    process.env.NODE_ENV === 'development' && error instanceof Error
+      ? error.message
+      : undefined;
+
+  return withCors({ 
+    error: "Failed to book appointment. Please try again later.",
+    details: message
+  }, 500);
+}
+
 }
 
 // Handle GET requests for testing/status
