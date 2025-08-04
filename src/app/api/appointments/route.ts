@@ -4,37 +4,43 @@ export const runtime = "nodejs";
 import { type NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
-// In-memory storage
+// In-memory storage (replace with persistent DB in production)
 const appointments: any[] = [];
 
-// Allowed origins (dev + future prod). You can supply prod via env later.
+// Allowed origins: dev + future production (set FRONTEND_ORIGIN in env when ready)
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
-  process.env.FRONTEND_ORIGIN || "", // e.g., "https://your-production-domain.com"
+  process.env.FRONTEND_ORIGIN || "",
 ].filter(Boolean);
 
-// Build CORS headers based on the incoming Origin header
-function buildCorsHeaders(request: NextRequest) {
+/**
+ * Returns CORS headers if the request's Origin is allowed; otherwise undefined.
+ */
+function buildCorsHeaders(request: NextRequest): Record<string, string> | undefined {
   const origin = request.headers.get("origin") || "";
-  if (ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
     return {
       "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      // add this if you ever send cookies: "Access-Control-Allow-Credentials": "true"
+      // if you later need credentials: "Access-Control-Allow-Credentials": "true"
     };
   }
-  return {};
+  return undefined;
 }
 
+/**
+ * Helper to respond with JSON plus optional CORS headers.
+ */
 function withCors(body: any, request: NextRequest, status = 200) {
+  const headers = buildCorsHeaders(request);
   return NextResponse.json(body, {
     status,
-    headers: buildCorsHeaders(request),
+    ...(headers ? { headers } : {}),
   });
 }
 
-// Setup transporter
+// Setup Nodemailer transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: 465,
@@ -45,23 +51,23 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Verify (for logs)
+// Verify transporter on cold start (logs appear in Vercel)
 transporter.verify().then(() => {
   console.log("SMTP transporter verified.");
 }).catch((err) => {
-  console.error("SMTP verify failed:", err);
+  console.error("SMTP transporter verification failed:", err);
 });
 
-// Preflight handler
+// Handle preflight
 export async function OPTIONS(request: NextRequest) {
+  const headers = buildCorsHeaders(request);
   return new NextResponse(null, {
     status: 204,
-    headers: {
-      ...buildCorsHeaders(request),
-    },
+    ...(headers ? { headers } : {}),
   });
 }
 
+// POST /api/appointments
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -78,6 +84,7 @@ export async function POST(request: NextRequest) {
       reason,
     } = body;
 
+    // Basic validation
     if (
       !name ||
       !email ||
@@ -89,14 +96,23 @@ export async function POST(request: NextRequest) {
       !date ||
       !time
     ) {
-      return withCors({ error: "All required fields must be provided." }, request, 400);
+      return withCors(
+        { error: "All required fields must be provided." },
+        request,
+        400
+      );
     }
 
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.ADMIN_EMAIL) {
-      console.error("Missing required email env vars.");
-      return withCors({ error: "Server configuration error." }, request, 500);
+      console.error("Missing essential email-related environment variables.");
+      return withCors(
+        { error: "Server configuration error." },
+        request,
+        500
+      );
     }
 
+    // Build appointment object
     const appointment = {
       id: Date.now().toString(),
       name,
@@ -114,7 +130,7 @@ export async function POST(request: NextRequest) {
     };
     appointments.push(appointment);
 
-    // Admin email
+    // Admin notification
     const adminMailOptions = {
       from: process.env.SMTP_USER,
       to: process.env.ADMIN_EMAIL,
@@ -192,22 +208,22 @@ export async function POST(request: NextRequest) {
       `,
     };
 
-    // Send admin (non-fatal)
+    // Send admin email (non-fatal)
     try {
       await transporter.sendMail(adminMailOptions);
-    } catch (e) {
-      console.error("Admin email error:", e);
+    } catch (adminErr) {
+      console.error("Admin notification failed:", adminErr);
     }
 
-    // Send patient, error here returns warning
+    // Send patient email; if it fails, return warning
     try {
       await transporter.sendMail(patientMailOptions);
-    } catch (e) {
-      console.error("Patient email error:", e);
+    } catch (patientErr) {
+      console.error("Patient confirmation failed:", patientErr);
       return withCors(
         {
           success: true,
-          warning: "Appointment saved but confirmation email failed.",
+          warning: "Appointment saved but failed to send confirmation email.",
           appointmentId: appointment.id,
         },
         request,
@@ -224,12 +240,17 @@ export async function POST(request: NextRequest) {
       request,
       200
     );
-  } catch (err) {
-    console.error("POST error:", err);
-    return withCors({ error: "Failed to book appointment. Try again later." }, request, 500);
+  } catch (error) {
+    console.error("Error booking appointment:", error);
+    return withCors(
+      { error: "Failed to book appointment. Try again later." },
+      request,
+      500
+    );
   }
 }
 
+// GET /api/appointments
 export async function GET(request: NextRequest) {
   return withCors(
     {
