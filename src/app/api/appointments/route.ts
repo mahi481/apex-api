@@ -25,7 +25,7 @@ function withCors(body: any, status = 200) {
 }
 
 // Create transporter with better error handling
-const createTransporter = () => {
+const createTransport = () => {
   try {
     return nodemailer.createTransporter({
       host: process.env.SMTP_HOST || "smtp.gmail.com",
