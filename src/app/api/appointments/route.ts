@@ -46,10 +46,10 @@ const createTransport = () => {
   }
 };
 
-const transporter = createTransporter();
+const transporter = createTransport();
 
 // Verify transporter on startup (optional, non-blocking)
-if (transport) {
+if (transporter) {
   transporter.verify()
     .then(() => {
       console.log("✅ SMTP transporter ready");
