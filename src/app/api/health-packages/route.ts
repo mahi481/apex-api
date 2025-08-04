@@ -13,6 +13,11 @@ const transporter = nodemailer.createTransport({
   },
 })
 
+// ✅ Added GET for browser testing
+export async function GET() {
+  return NextResponse.json({ message: "Health Packages API is working" })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -39,13 +44,13 @@ export async function POST(request: NextRequest) {
     // Save to "database"
     healthPackageInquiries.push(inquiry)
 
-   // Send email to admin (simple styled)
-try {
-  await transporter.sendMail({
-    from: process.env.SMTP_USER,
-    to: process.env.ADMIN_EMAIL || "admin@apexhospital.com",
-    subject: "New Inquiry Received",
-    html: `
+    // Send email to admin (simple styled)
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_USER,
+        to: process.env.ADMIN_EMAIL || "admin@apexhospital.com",
+        subject: "New Inquiry Received",
+        html: `
       <div style="font-family: system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f9f9fa; padding:12px;">
         <div style="max-width:600px; margin:auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
           
@@ -72,10 +77,10 @@ try {
         </div>
       </div>
     `,
-  });
-} catch (emailError) {
-  console.error("Email sending failed:", emailError);
-}
+      })
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError)
+    }
 
     return NextResponse.json({
       success: true,
