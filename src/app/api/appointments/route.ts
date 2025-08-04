@@ -7,14 +7,13 @@ import nodemailer from "nodemailer";
 // In-memory storage
 const appointments: any[] = [];
 
-// Simplified CORS headers for dev: echo origin if present, otherwise allow all
+// Always allow CORS during dev (echo origin if present)
 function getDevCorsHeaders(request: NextRequest): Record<string, string> {
   const origin = request.headers.get("origin");
   return {
     "Access-Control-Allow-Origin": origin || "*",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    // if you later use credentials: "Access-Control-Allow-Credentials": "true"
   };
 }
 
@@ -36,11 +35,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Verify transporter (logs appear in Vercel)
+// Verify transporter (for logs)
 transporter.verify().then(() => {
   console.log("SMTP transporter verified.");
 }).catch((err) => {
-  console.error("SMTP transporter verify failed:", err);
+  console.error("SMTP transporter verification failed:", err);
 });
 
 // Preflight handler
@@ -103,7 +102,6 @@ export async function POST(request: NextRequest) {
     };
     appointments.push(appointment);
 
-    // Admin email
     const adminMailOptions = {
       from: process.env.SMTP_USER,
       to: process.env.ADMIN_EMAIL,
@@ -123,7 +121,6 @@ export async function POST(request: NextRequest) {
       `,
     };
 
-    // Patient email
     const hospitalName = "Apex Hospital";
     const hospitalAddress =
       "Plot No 1 and 6, Vijapur Rd, opp. to Galaxy Panache, Yamini Nagar, Swami Vivekanand Nagar 2, Solapur, Maharashtra 413007";
@@ -213,7 +210,11 @@ export async function POST(request: NextRequest) {
     );
   } catch (err) {
     console.error("POST error:", err);
-    return withCors({ error: "Failed to book appointment. Try again later." }, request, 500);
+    return withCors(
+      { error: "Failed to book appointment. Try again later." },
+      request,
+      500
+    );
   }
 }
 
