@@ -10,8 +10,8 @@ const appointments: any[] = [];
 // Enhanced CORS config to accept requests from anywhere
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*", // Allow all origins
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS,PUT,DELETE",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
   "Access-Control-Allow-Credentials": "false", // Set to false when using wildcard origin
   "Access-Control-Max-Age": "86400", // Cache preflight for 24 hours
 };
