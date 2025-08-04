@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
                     <tr><td style="padding: 8px 0;"><strong>Reason:</strong></td><td style="padding: 8px 0;">${reason || "N/A"}</td></tr>
                   </table>
                   <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 5px;">
-                    <p style="margin: 0; color: #1565c0;"><strong>Appointment ID:</strong> ${appointment.id}</p>
+                   
                     <p style="margin: 5px 0 0 0; color: #1565c0;"><strong>Status:</strong> Pending Confirmation</p>
                   </div>
                 </div>
